@@ -36,12 +36,35 @@ jobs:
     steps:
       # 可复用工作流检出的是调用方的插件仓库，不是套件仓库。
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: 源文件不超过 800 行
+      # 只数代码行：空行和只有注释的行不算（去掉首尾空白后以注释符开头的行，以及 /* */ 块里的行），不做完整的语法分析。
+      # 超过 800 行警告，是该按职责拆的信号；超过 2000 行失败。不许为了缩短行数写难懂的代码：删注释、把多行挤成一行、
+      # 把穷举的 match 改成 _、缩短有意义的名字都不行。
+      - name: 源文件代码行数（超过 800 警告，超过 2000 失败）
         shell: python
         run: |
           import os
           import subprocess
           import sys
+
+          WARN_LINES, FAIL_LINES = 800, 2000
+
+          def code_lines(path):
+              hash_comments = path.endswith(('.py', '.sh'))
+              count, in_block = 0, False
+              with open(path, encoding='utf-8', errors='replace') as source:
+                  for raw_line in source:
+                      line = raw_line.strip()
+                      if in_block:
+                          in_block = '*/' not in line
+                      elif not line:
+                          pass
+                      elif hash_comments:
+                          count += not line.startswith('#')
+                      elif line.startswith('/*'):
+                          in_block = '*/' not in line[2:]
+                      else:
+                          count += not line.startswith('//')
+              return count
 
           paths = subprocess.check_output([
               'git', 'ls-files', '-z', '--',
@@ -50,11 +73,12 @@ jobs:
           failed = False
           for raw_path in filter(None, paths):
               path = os.fsdecode(raw_path)
-              with open(path, 'rb') as source:
-                  lines = sum(1 for _ in source)
-              if lines > 800:
-                  print(f'{path!r}: {lines} 行（上限 800）')
+              lines = code_lines(path)
+              if lines > FAIL_LINES:
+                  print(f'{path!r}: {lines} 行代码（不算空行和注释，上限 {FAIL_LINES}），按职责拆开')
                   failed = True
+              elif lines > WARN_LINES:
+                  print(f'::warning file={path}::{path} 有 {lines} 行代码（不算空行和注释），超过 {WARN_LINES}，按职责拆')
           sys.exit(1 if failed else 0)
       - name: ShellCheck
         run: shellcheck scripts/*.sh
