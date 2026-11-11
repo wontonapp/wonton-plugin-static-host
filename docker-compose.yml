@@ -39,10 +39,12 @@ x-wonton:
   id: app.wonton.static-host
   version: 0.1.0
   kind: system
-  title: { zh: 静态网页托管, en: Static web hosting }
+  title: { zh: 小网页书架（Caddy）, en: Mini Page Shelf (Caddy) }
   description:
-    zh: 托管静态网页插件的文件和它们的小块数据
-    en: Serves the files of static web plugins and their small data stores
+    zh: 像一个放小网页的书架，家里那些小游戏、小工具都放在这里，在 App 里一点就开。比如 Agent 帮你做的贪吃蛇，或者能记东西的待办清单。
+    en: >-
+      Like a bookshelf for small web pages: the little games and tools in your home live here and open with one tap in
+      the app. For example, a snake game your agent made, or a to-do list that remembers what you add.
   icon: icon.svg
   notices: [NOTICE]
   author: { name: Wonton, url: https://github.com/wontonapp }
@@ -52,12 +54,12 @@ x-wonton:
   tags: { zh: [系统], en: [System] }
   about:
     zh: |
-      静态网页插件没有自己的容器：核心把它们的文件交给这个插件，按插件分开提供。页面用 /_wonton/data/ 存的数据也放在这里，
-      每个插件最多 64 MiB、1024 个文件和目录，单个文件 8 MiB。
+      这些小网页不用各自开一个程序，全靠它一个打开，省内存。网页记下的东西（比如待办事项）也存在这里，每个网页最多 64 MiB。
+      它停了，这些小网页就都打不开；卸掉它之前要先卸掉用它的小网页。
     en: |
-      Static web plugins have no container of their own: the core hands their files to this plugin, which serves each
-      plugin separately. Data that pages store under /_wonton/data/ lives here too, up to 64 MiB, 1024 files and
-      directories, and 8 MiB per file for each plugin.
+      The small pages don't each need a program of their own; this one opens them all, which saves memory. What a page
+      remembers (a to-do list, say) is kept here too, up to 64 MiB per page. If it stops, none of these pages open; uninstall
+      the pages that use it before uninstalling it.
   release_notes: { zh: 第一版。, en: First release. }
   provides:
     static_web: { service: static, port: 8080, mount: /srv/static }

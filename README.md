@@ -1,4 +1,4 @@
-# 静态网页托管
+# 小网页书架（Caddy）
 
 云吞的系统插件 `app.wonton.static-host`：静态网页插件（`runtime: static_web`）没有自己的容器，核心把它们的文件交给本插件提供；
 页面经 `/_wonton/data/` 存的小块数据也由本插件读写。通用的开发流程和规则见[开发指南](https://github.com/wontonapp/wonton-docs/blob/main/develop.md)
