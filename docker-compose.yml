@@ -1,78 +1,72 @@
-# 示例插件：nginx 显示一个网页，向登录的人问好。改成自己的应用见 https://github.com/wontonapp/wonton-docs/blob/main/develop.md#写插件。
 services:
-  web:
-    # 镜像按摘要固定（多架构镜像写清单列表的摘要），标签只给人看。
-    image: nginx:1.31.8-alpine@sha256:713fc2ebfd92e8217db451477182ee91944b123d2b1ee9fd5a8c6e91ca6c3a11
-    environment:
-      # 网关代登录：SSI 回显的 Remote-User 只信核心带来的。官方镜像启动时对 templates 目录里的
-      # *.template 做 envsubst，把下面的地址换进 nginx 配置（见 web/default.conf.template）。
-      WONTON_CORE_ADDRESS: ${WONTON_CORE_ADDRESS}
-    # 包里的文件经 configs 交给容器（核心在启动前写进去），不能用卷挂载。
+  # static_web：Caddy 官方镜像，配置只有 Caddyfile。核心把 <核心数据目录>/hosted/static_web/ 只读挂到
+  # provides.static_web.mount，不写在这里。
+  static:
+    image: caddy:2.11.9-alpine@sha256:0bbb055bda6793c999bde78b1b5ce3e89f829fb031af2cf50056ea1246559fee
+    # Caddy 只读文件、不写自己的 /data 和 /config（admin、自动 HTTPS 都关了），不需要 root。
+    user: "${PUID}:${PGID}"
     configs:
-      - source: site
-        target: /etc/nginx/templates/default.conf.template
-      - source: page
-        target: /usr/share/nginx/html/index.html
-      - source: tokens
-        target: /usr/share/nginx/html/tokens.css
+      - source: caddyfile
+        target: /etc/caddy/Caddyfile
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/healthz"]
+      # 挂载点不在说明核心没挂上，Caddy 照样能起来、对什么都回 404，所以一起查。
+      test: ["CMD-SHELL", "test -d /srv/static && wget -q -O /dev/null http://127.0.0.1:8079/healthz"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      start_interval: 1s
+
+  # web_storage：没有现成服务端能按头选目录、按插件限额回 507，自己写的小服务（images/wonton-web-storage/）。
+  # 核心把 <核心数据目录>/hosted/web_storage/ 读写挂到 provides.web_storage.mount。
+  storage:
+    image: ghcr.io/wontonapp/wonton-web-storage:0.1.0
+    # 写进挂载目录的文件属主是 PUID:PGID，和核心建的插件子目录一致。
+    user: "${PUID}:${PGID}"
+    healthcheck:
+      # /healthz 查挂载点是可写的目录，不只是进程活着。
+      test: ["CMD", "/usr/local/bin/wonton-web-storage", "-healthcheck"]
       interval: 30s
       timeout: 5s
       start_period: 30s
       start_interval: 1s
 
 configs:
-  site:
-    file: web/default.conf.template
-  page:
-    file: web/index.html
-  tokens:
-    file: web/tokens.css
+  caddyfile:
+    file: Caddyfile
 
 x-wonton:
-  spec: "0.6"
-  # 换成你自己的：反向域名形式，装上以后不能改。
-  id: app.example.hello
-  version: 0.1.1
-  kind: app
-  title: { zh: 你好, en: Hello }
-  description: { zh: 向登录的人问好的示例网页, en: An example page that greets whoever is signed in }
+  spec: "0.12"
+  id: app.wonton.static-host
+  version: 0.1.0
+  kind: system
+  title: { zh: 小网页书架（Caddy）, en: Mini Page Shelf (Caddy) }
+  description:
+    zh: 像一个放小网页的书架，家里那些小游戏、小工具都放在这里，在 App 里一点就开。比如 Agent 帮你做的贪吃蛇，或者能记东西的待办清单。
+    en: >-
+      Like a bookshelf for small web pages: the little games and tools in your home live here and open with one tap in
+      the app. For example, a snake game your agent made, or a to-do list that remembers what you add.
   icon: icon.svg
   notices: [NOTICE]
-  screenshots: [screenshots/home.png]
-  author: { name: Example }
-  homepage: https://nginx.org
-  # 应用（这里是 nginx）的许可证；插件包自己的许可证写在仓库的 LICENSE 里。
-  license: BSD-2-Clause
-  tags:
-    zh: [工具]
-    en: [Tools]
+  author: { name: Wonton, url: https://github.com/wontonapp }
+  homepage: https://github.com/wontonapp/wonton-plugin-static-host
+  # Caddy（Apache-2.0）提供静态网页；数据存储是本仓库自己写的（MIT）。
+  license: Apache-2.0 AND MIT
+  tags: { zh: [系统], en: [System] }
   about:
     zh: |
-      一个示例网页：登录以后，页面会向你问好。新建插件时可以照着改。
+      这些小网页不用各自开一个程序，全靠它一个打开，省内存。网页记下的东西（比如待办事项）也存在这里，每个网页最多 64 MiB。
+      它停了，这些小网页就都打不开；卸掉它之前要先卸掉用它的小网页。
     en: |
-      An example page: once you are signed in, the page says hello. Copy it as a starting point for a new plugin.
-  release_notes: { zh: 名字和说明更新。, en: Product name and description update. }
-  webui:
-    service: web
-    port: 80
-    # 示例页回显网关注入的用户名，见 https://github.com/wontonapp/wonton-docs/blob/main/plugin-spec.md#网关代登录sso-proxy。
-    sso: proxy
-    proxy:
-      headers:
-        Remote-User: "{user}"
-  # 能放进侧边栏“我的应用”的页面，见 https://github.com/wontonapp/wonton-docs/blob/main/plugin-spec.md#应用页面tabs。放不放由用户决定。
-  tabs:
-    - id: home
-      title: { zh: 主页, en: Home }
-      icon: tabs/home.svg
-      icon_selected: tabs/home-fill.svg
-      path: /
-      # 这个页面没做适配，用默认的 inset：从状态栏下沿开始，页面不用管安全区。
-      # 想让内容从状态栏后面滚过，写 layout: edge-to-edge，并用 --wonton-inset-* 留出系统安全区的位置。
+      The small pages don't each need a program of their own; this one opens them all, which saves memory. What a page
+      remembers (a to-do list, say) is kept here too, up to 64 MiB per page. If it stops, none of these pages open; uninstall
+      the pages that use it before uninstalling it.
+  release_notes: { zh: 第一版。, en: First release. }
+  provides:
+    static_web: { service: static, port: 8080, mount: /srv/static }
+    web_storage: { service: storage, port: 8081, mount: /srv/data }
+  # 不出网：只回答核心网关转来的请求。
   permissions: []
-  # 上游 nginx 官方镜像，amd64 和 arm64 都有；上游没写最低内存，按本机空闲实测取整（实测约 24M，取 64M）。
+  # 两个镜像都有 amd64 和 arm64；内存按空闲实测取整（见 README）。
   requirements:
     arch: [amd64, arm64]
     memory: 64M

@@ -1,0 +1,26 @@
+# static_web 的提供方：按 X-Wonton-Plugin 选 /srv/static 下的子目录，原样提供静态文件。
+# 鉴权、CSP、nosniff、隔离头和 SPA 的 fallback 都在核心网关，这里不做。
+{
+	admin off
+	persist_config off
+	auto_https off
+}
+
+:8080 {
+	# 先校验头，再拿同一个字符串拼站点根。用 expression 而不用 header_regexp：header_regexp 把头按逗号拆开，
+	# 任意一段匹配就算过，“a.b, ../c.d”这样的值能过校验，而占位符取到的是整个值。
+	# 头校验过以后只含小写字母、数字、- 和 .，且不以 . 开头，拼出来的根一定是 /srv/static 下的一层子目录，
+	# 碰不到核心的 .staging/。
+	@invalid `!{http.request.header.X-Wonton-Plugin}.matches("^[a-z0-9]+(-[a-z0-9]+)*([.][a-z0-9]+(-[a-z0-9]+)*)+$") || size({http.request.header.X-Wonton-Plugin}) > 63`
+	respond @invalid "invalid or missing X-Wonton-Plugin" 400
+
+	root * /srv/static/{http.request.header.X-Wonton-Plugin}
+	# file_server 每个请求都重新 stat，不缓存文件句柄和目录，核心对换子目录后下一个请求就是新内容。
+	# 不开 browse：目录没有 index.html 就是 404，不列目录。
+	file_server
+}
+
+# 健康检查，只在容器里用；网关只转发 8080。
+:8079 {
+	respond /healthz 200
+}
