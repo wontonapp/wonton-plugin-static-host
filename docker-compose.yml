@@ -2,7 +2,7 @@ services:
   # static_web：Caddy 官方镜像，配置只有 Caddyfile。核心把 <核心数据目录>/hosted/static_web/ 只读挂到
   # provides.static_web.mount，不写在这里。
   static:
-    image: caddy:2.11.9-alpine@sha256:0bbb055bda6793c999bde78b1b5ce3e89f829fb031af2cf50056ea1246559fee
+    image: caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
     # Caddy 只读文件、不写自己的 /data 和 /config（admin、自动 HTTPS 都关了），不需要 root。
     user: "${PUID}:${PGID}"
     configs:
