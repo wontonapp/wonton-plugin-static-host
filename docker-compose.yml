@@ -35,11 +35,12 @@ configs:
     file: Caddyfile
 
 x-wonton:
-  spec: "0.12"
+  spec: "0.17"
   id: app.wonton.static-host
   version: 0.1.0
   kind: system
-  title: { zh: 小网页书架（Caddy）, en: Mini Page Shelf (Caddy) }
+  title: { en: "Caddy" }
+  subtitle: { zh: "小网页书架", en: "Mini Page Shelf" }
   description:
     zh: 像一个放小网页的书架，家里那些小游戏、小工具都放在这里，在 App 里一点就开。比如 Agent 帮你做的贪吃蛇，或者能记东西的待办清单。
     en: >-
